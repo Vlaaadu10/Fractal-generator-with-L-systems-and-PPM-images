@@ -1,0 +1,83 @@
+# **In this document you can visualize the implementation of the third assignment from the Computer Programming and Programming Languages I course. You'll see below the description of the concepts and functions used in images transformations including diverse algorithms and interpretations of data. Moreover, the implementation is modular, each task being divided into independent functions alongside headers which also makes the code easy to follow and more clean**
+314CA Stefan Alexandru Vladut
+
+
+## Introduction
+The program starts obviously in main.c, where our current application is initialized, then the programm reads the commands until it reaches the EXIT one which means it is the end as you probably have thought:) The main function executa_comanda store the command which was read and the app and goes to next part of my structure, in comenzi.c, where all the specific commands are declared and defined. In executa_comanda as I said depending on what was the command it passes to its function. There, function could also call other functions which I made separately for each task. For example, for  L-system interpretation and derive I've made a different file in my code where the L-system is loaded with the axiom and the set of rules, then I made a deep copy for it, I calculate the length of the sequence and generate it respecting the rules but I'll explain in detail later. Same in font.c for the writing BDF format text in images and for the drawing in turtle. Moreover, I'll like to add that one functionality of my programm which makes the things easier is the istoric.c file that store a history stack, where UNDO and REDO operations are stored and can be accessed at need.
+
+## Structure 
+The project is organized in multiple .c files and headers(.h) to make it well structured and easy to follow. Each header contains variable and structure declarations and function calls that are going to be used in the corresponding .c file. I want to make that declarations in advance where possible to avoid circular dependencies. In addition to this, you may see and I have also mentioned that every task is treated separately in order to implement them independently and to clearly see their functionality.
+
+Notwithstanding the importance of headers I also defined in .c files some useful functions in order to help me save lines(my_malloc, my_realloc, my_strdup, del_newline etc). As they are local functions I made them static to avoid affecting other files where I also used them. Other mentions are related to allocations I usually chose 256(ASCII code) for strings, 1000 for files generally as a margin of error, but I have also defined some constans like M_PI to use it in turtle_graphics, BUFFER_SIZE for reading BDF files and setting a generous upper bound, MAX_GLYPH_DIM for limiting the maximum size of a glyph etc.
+
+For design choices some read only strings were defined as const char * and for turtle and history files I adopt some dinamically allocation and double the capacity when needed using my_reallloc.
+
+## P.S:
+Several functions return pointers to dinamically allocated structures in order to maintain them valid and useable by transferring the information
+I've used functions in every file for dealocating the memory in order to prevent memory leaks as we were also told to do so
+If a command is invalid or doesn't respect the specific format the error message "Comanda invalida" is displayed
+
+`1. COMENZI.C/.H`
+-   functions for every task centralised in comenzi.c
+-   my help defined functions(my_malloc, my_strdup as in every other file)
+-   setting the current state of the application described by 2 structures with 3 specific variables for each:
+-   application caracteristics:
+-       imagine_t *imagine;
+-       sistem_l_t *sistem_l;
+-       font_t *font;
+-   and for storing in history the current state:
+-       stare_aplicatie_t stare_curenta;
+-       stiva_istoric_t *undo;
+-       stiva_istoric_t *redo;
+-   reading the header of the P6 format file and parsing parameters for the graphic system
+
+`2. ISTORIC.C/.H`
+-   defining and initializing history stack that store all changes of the state
+-   there are two stacks maintained and UNDO/REDO function implementation:
+-       UNDO: changes that can be undone
+-       REDO: changes that were undone and can be redone
+-   here also are deep copies to be sure of their independancy
+-   store in modificare_t the current state, being linked with start_modificare and final_modificare, saving information about the last saved state, the next state and the output
+-       modificare->inainte
+-       modificare->dupa
+-       modificare->output
+
+`3. FONT.C/.H`
+-   define glyph_t and its specific variables and each font has a name and the caracteristics stored in glyph_t
+-   one of utmost importance function that I've created is parsare_bitmap as the bitmap is codified using hexazecimal text and in order to ease the coloring of the pixels I transformed the text into a 0/1 binary matrix
+-   incarca_font() loads the font, then I've created a deep copy of it and in comanda_font it adds the font to the current application
+-   after that in comanda_type it writes the text with the specified font on the image and display the succes output("Text written")
+
+`4. SISTEM_L.C/.H`
+-   define of the L_system structure, represented by 3 characteristics:
+-       char *axioma;
+-       char *reguli[256];
+-       int numar_reguli;
+-   initialization of the system, loading the current system with its axiom and rules and creating a deep copy
+-   to be of help for the main function derive_sistem_l I've created the len_derivata (calculating the length of the sequence) and transforma_sir(apply the rules to derive the sequence one time) and after that in the main function it is done repeteadly until it reaches the end
+
+`5. TURTLE.C/.H`
+-   define representation of the image in format PPM
+-   retain the current state of the application during the drawing:
+-       double x, y, unghi;
+-   stiva_turtle_t is used to store '[' and ']' operators
+-   same stiva_push and stiva_pop classic algorithms
+-   the implementation of Bresenham algorithm that provides the most ideal line between two directions, advancing on the dominant axis and ocasionally on both. This is useful in order to draw lines efficiently and  close to the image approach in order to color each selected pixel
+-   I implemented instead of using round everytime a function that converts double(how positions are kept) into integers
+-   draw_turtle is the key function that depending on the operator shows the specific result in the image
+-       F: draw a line forward
+-       +: rotate left by the angle
+-       -: rotate right by the angle
+-       [: push current position and angle into the stack
+-       ]: pop and restore the last state
+
+`6. BITCHECK`
+-   the image is treated as a sequence of bits(each pixel has 24 bits), this function checks if there are any sequences that can be read incorrectly and if not, it will display thoe corrected sequence by inverting the third bit and mentioning the affected pixel
+-   for the inversion of the bit I implemented flip_bit function that identify the corresponding pixel, since each pixel contains 24 bits, then it determine the color channel and exact position and thus invert the bit using a mask as we worked in the twelfth lab using XOR
+-   Similarly the read_bit function which go trough the sequence and, reading from MSB to LSB that's why my expression look like that because the MSB is the farest to the left but the real indexing is backwards:
+-       int poz_canal = 7 - (poz_pixel % 8);
+
+`7. PPM(P6) format manipulation`
+-   images are loaded and saved to binary PPM P6 format
+-   I validated the header of the file using function citeste_header(width, height, max value of pixel 255), then I stored them into a RGB matrix read as bytes being inspirated by the written test:)
+-   pixels are read from left to right, top bottom but drawing operations use the coordinate system with its origin at bottom left so I had to map them to the correct index using index_pixel function
